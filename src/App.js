@@ -11,7 +11,8 @@ import {
   Button,
   SimpleGrid,
   Link,
-  ButtonGroup
+  ButtonGroup,
+  calc
 } from '@chakra-ui/react'
 import { 
   WarningIcon
@@ -20,7 +21,7 @@ import { ColorModeSwitcher } from './ColorModeSwitcher' //switch mode dark/light
 
 //ethers
 import { ethers } from "ethers";
-// import contractAbi from './GiveForeverABI.json';
+import contractAbi from './SmartVoteABI.json';
 
 //state/effect
 import { useEffect, useState } from "react";
@@ -29,6 +30,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import Home from './Home';
 import Vote from './Vote';
+import Resultats from './Resultats';
+import CarteElectorale from './CarteElectorale';
+
+import { Footer } from './Footer';
+
 
 function TopHeading() {
   return (
@@ -171,11 +177,11 @@ function RightFeature() {
   )
 }
 
-function Footer() {
+/*function Footer() {
   return (
     <Box mt={20} mb={12}>
       <Text fontSize="4xl" mt={12} fontWeight="bold" textAlign="center">
-        Homelify
+        Smart Vote
       </Text>
       <Text
         fontSize="2xl"
@@ -186,48 +192,32 @@ function Footer() {
         mt={4}
         pb={10}
       >
-        We match home owners with tourists and help the tourists get the home they want
+        Le vote n'a jamais été aussi simple !
       </Text>
-      <SimpleGrid columns={3} w="max-content" gap={20} m="0 auto" mt={6}>
-        <Text>Privacy</Text>
-        <Text>Pricing</Text>
-        <Text>Login</Text>
+      <SimpleGrid columns={2} w="max-content" gap={20} m="0 auto" mt={6}>
+        <Text>Condition d'utilisation</Text>
+        <Text>Assistance</Text>
       </SimpleGrid>
     </Box>
   )
-}
+}*/
 
 
 function App() {
-  const [haveMetamask, sethaveMetamask] = useState(true);
-  const [accountAddress, setAccountAddress] = useState('');
-  const [accountBalance, setAccountBalance] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-
+  const contractAddress = process.env.REACT_APP_SMARTVOTE_ADDRESS; //goerli
+  
   const { ethereum } = window;
 
-  const [candidatsPage, setCandidatsPageActive] = useState(false);
-  const [votePage, setVotePageActive] = useState(false);
-  const [pageActive, setPageActive] = useState('');
-  // const provider = new ethers.providers.Web3Provider(window.ethereum);
+  const [haveMetamask, sethaveMetamask] = useState(true);
+  const [accountAddress, setAccountAddress] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [isInscrit, setIsInscrit] = useState(false);
+  const [nftMinted, setMinted] = useState(false);
+
+  useEffect(() => {
+    connectWallet();
+}, []);
   
-
-  // useEffect(() => {
-  //   const { ethereum } = window;
-  //   const checkMetamaskAvailability = async () => {
-  //     // if (!ethereum) {
-  //     //   sethaveMetamask(false);
-  //     // }
-  //     // sethaveMetamask(true);
-  //     if (typeof window.ethereum == 'undefined') {
-  //       sethaveMetamask(false);
-  //       alert('MetaMask should be installed !');
-  //     }
-  //     sethaveMetamask(true);
-  //   };
-  //   checkMetamaskAvailability();
-  // }, []);
-
   const connectWallet = async () => {
     try {
       if (!ethereum) {
@@ -238,11 +228,23 @@ function App() {
       const accounts = await ethereum.request({
         method: 'eth_requestAccounts',
       });
-      let balance = await provider.getBalance(accounts[0]);
-      let bal = ethers.utils.formatEther(balance);
       setAccountAddress(accounts[0]);
-      setAccountBalance(bal);
       setIsConnected(true);
+
+      const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+      const c = await contract.getElecteur(accounts[0]);
+      if(c[0].toString() !== "0"){
+        setIsInscrit(true);
+        if(c.mintOk){
+          setMinted(true);
+        }
+      }
+      else{
+        setIsInscrit(false);
+      }
+        console.log(c.mintOk);
+        console.log(c[0].toString());
+
     } catch (error) {
       setIsConnected(false);
     }
@@ -258,11 +260,32 @@ function App() {
             </a>
           </Button>
           <ButtonGroup variant='outline' spacing='6'>
-            <Button colorScheme="teal" href="/candidats" >Candidats</Button>
-            <Button colorScheme="teal" >Resultats</Button>
+            {!isInscrit? (
+              <Button colorScheme="teal" >
+                <a href='/CarteElectorale'>
+                  Inscription
+                </a>
+              </Button>
+              ) : (
+              null
+            )}
+            {!nftMinted & isInscrit? (
+                <Button colorScheme="teal" >
+                  <a href='/CarteElectorale'>
+                    Carte Electorale
+                  </a>
+                </Button>
+              ) : (null)}
+            {isInscrit & nftMinted? (
+              <Button colorScheme="teal" >
+                <a href='/Vote'>
+                  Vote
+                </a>
+              </Button>
+            ): (null) }
             <Button colorScheme="teal" >
-              <a href='/Vote'>
-                Vote
+              <a href='/Resultats'>
+                Resultats
               </a>
             </Button>
           </ButtonGroup>
@@ -271,7 +294,7 @@ function App() {
       <Spacer />
       <Box p="2">
         {isConnected? (
-          <Text fontSize='sm'>🎉 Connected Successfully</Text>
+          <Text fontSize='sm'>🎉 Connected as {accountAddress.slice(0, 4)}...{accountAddress.slice(38, 42)}</Text>
         ) : (
           <Button colorScheme="teal" onClick={connectWallet}>Connexion</Button>
         )}
@@ -289,14 +312,25 @@ function App() {
   */
   return (
     <ChakraProvider theme={theme}>
-      <Router>
-        <NavBar />
-        <Routes>
-          <Route exact path='/' element={<Home/>} />
-          <Route path='/Vote' element={<Vote/>} />
-        </Routes>
-        <Footer />
-      </Router>
+      <div className='content-container'>
+        <Router>
+          <NavBar />
+          <Routes>
+            <Route exact path='/' element={<Home/>} />
+            {isInscrit & !nftMinted? (
+              <Route path='/CarteElectorale' element={<CarteElectorale/>} />
+            ) : (null)}
+            {isInscrit & nftMinted? (
+              <Route path='/Vote' element={<Vote/>} />
+            ) : (null)}
+            <Route path='/Resultats' element={<Resultats/>} />
+          </Routes>
+        </Router>
+      </div>
+      <div className='footer--pin'>
+        <Footer/>
+      </div>
+      
       
     </ChakraProvider>
   )
