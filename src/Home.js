@@ -2,9 +2,6 @@ import React from 'react';
 import { 
   Text,
   Box,
-  Center,
-  Stack,
-  Button,
 } from '@chakra-ui/react'
   
 const Home = () => {

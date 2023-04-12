@@ -5,19 +5,13 @@ import {
   Heading, 
   Text, 
   Box,
-  Badge,
   Flex,
   Spacer,
   Button,
-  SimpleGrid,
-  Link,
   ButtonGroup,
-  calc,
   Center
 } from '@chakra-ui/react'
-import { 
-  WarningIcon
-} from '@chakra-ui/icons'
+
 import { ColorModeSwitcher } from './ColorModeSwitcher' //switch mode dark/light
 
 //ethers
