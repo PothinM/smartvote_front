@@ -9,6 +9,7 @@ import {
     Container,
     Center,
     Stack,
+    Image
 } from '@chakra-ui/react'
 
 import { ethers } from "ethers";
@@ -21,32 +22,67 @@ function Resultats() {
     const [votesBlancs, setVotesBlancs] = useState(0);
     const [votes, setVotes] = useState([]);
 
-    const getResultats = async () => {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const contract = new ethers.Contract(contractAddress, contractAbi, provider);
-
-        const resultats = await contract.getResultats();
-        console.log(resultats[0].toString());
-        setVotesBlancs(resultats[0].toString());
-
-        const candidatVote = await contract.getCandidats();
-        console.log(candidatVote);
-
-        const res = [];
-        for (let index = 0; index < resultats[1].length; index++) {
-            res.push({  prenom: candidatVote[index][0], nom: candidatVote[index][1], partie: candidatVote[index][2], vote: resultats[1][index].toString()});
-        }
-        setVotes(res);
-        console.log(votes);
-    }
+    const [voteOuvert, setVoteOuvert] = useState(true);
 
     useEffect(() => {
         getResultats();
-      }, []);
+    }, []);
 
+
+    const getVoteOuvert = async () => {
+        if(typeof window.ethereum !== 'undefined'){
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+            try {
+                const txVoteOuvert = await contract.getVoteStarted();
+                setVoteOuvert(txVoteOuvert);
+            } catch (err) {
+                console.log(err);
+                setVoteOuvert(false);
+            }
+        }
+    }
+
+    const getResultats = async () => {
+        if(typeof window.ethereum !== 'undefined'){
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const contract = new ethers.Contract(contractAddress, contractAbi, provider);
+            try {
+                //on récupère les candidats
+                const candidatVote = await contract.getCandidats();
+
+                await getVoteOuvert();
+                
+                //si les votes sont ouverts, on récupère les résultats
+                if(voteOuvert){
+                    //puis les résultats
+                    const resultats = await contract.getResultats();
+                
+                    //on assigne les votes blancs
+                    setVotesBlancs(resultats[0].toString());
+
+                    //on assigne aux candidats un champs vote avec leurs nombres de votes
+                    const res = [];
+                    if(resultats.length > 0){
+                        for (let index = 0; index < resultats[1].length; index++) {
+                            res.push({  prenom: candidatVote[index][0], nom: candidatVote[index][1], partie: candidatVote[index][2], vote: resultats[1][index].toString(), uri: candidatVote[index][4]});
+                        }
+                    }
+                    
+                    setVotes(res);
+                }
+
+                
+            } catch (err) {
+                console.log(err);
+            }
+        }
+    }
+
+    
     function TabVotesBlancs() {
         return (
-        <p>votes blancs : {votesBlancs}</p>
+            <p>votes blancs : {votesBlancs}</p>
         );
     }
 
@@ -54,19 +90,23 @@ function Resultats() {
         return (
             <>
                 <Flex w="min-content" m="0 auto">
-                    {votes.map((user) => (
+                    {votes.map((candidat) => (
                         <Box m="8" border="1px solid" borderColor="gray.400" w="300px" borderRadius="lg">
-                        <Box w="100%" h="200px" bg="gray.100" borderTopRadius="lg"></Box>
-                        <Box p="4">
+                        <Box w="100%" h="200px" bg="gray.400" borderTopRadius="lg">
+                            <Image objectFit='cover' src={candidat.uri}></Image>
+                        </Box>
+                        <Box p="6">
                             <Text fontSize="2xl" fontWeight="bold">
-                            {user.prenom} {user.nom}
+                            {candidat.prenom} {candidat.nom}
                             </Text>
                             <Text fontSize="xs" mb="6">
-                            {user.partie}
+                            {candidat.partie}
                             </Text>
                             <Flex>
-                            <Text fontSize="xs">{user.vote}</Text>
-                            <Spacer />
+                                {voteOuvert? (
+                                    <Text fontSize="xs">{candidat.vote}</Text>
+                                ) : (null)}
+                                <Spacer />
                             </Flex>
                         </Box>
                     </Box>
@@ -84,10 +124,13 @@ function Resultats() {
                         Resultats : 
                 </Text>
                 <Center>
-                    <Stack spacing={4}>
-                        <Button colorScheme='teal' size='xs' onClick={getResultats}>Actualiser</Button>
-                        <TabVotesBlancs/>
-                    </Stack>
+                    {voteOuvert? (
+                        <Stack spacing={4}>
+                            <Button colorScheme='teal' size='xs' onClick={getResultats}>Actualiser</Button>
+                            <TabVotesBlancs/>
+                        </Stack>
+                    ) : (<Text color='tomato'>Les votes n'ont pas encore commencé ! </Text>)}
+                    
                 </Center>
             </Box>
             <TabVotesCandidats/>
