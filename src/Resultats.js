@@ -3,10 +3,8 @@ import {
     Button,
     Text,
     Box,
-    Badge,
     Flex,
     Spacer,
-    Container,
     Center,
     Stack,
     Image
@@ -14,7 +12,6 @@ import {
 
 import { ethers } from "ethers";
 import contractAbi from './SmartVoteABI.json';
-
 
 function Resultats() {
     const contractAddress = process.env.REACT_APP_SMARTVOTE_ADDRESS; //goerli
@@ -26,8 +23,7 @@ function Resultats() {
 
     useEffect(() => {
         getResultats();
-    }, []);
-
+    }, []); 
 
     const getVoteOuvert = async () => {
         if(typeof window.ethereum !== 'undefined'){
